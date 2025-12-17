@@ -33,7 +33,7 @@ Aplikasi web modern untuk mengelola work order dan layanan servis dengan antarmu
 
 1. **Clone atau Extract Project**
 ```bash
-cd bmc
+cd project-folder
 ```
 
 2. **Install Dependencies**
