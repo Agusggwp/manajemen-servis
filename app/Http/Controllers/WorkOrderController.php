@@ -124,5 +124,69 @@ class WorkOrderController extends Controller
 
         return redirect('/')->with('success', 'Work Order ditandai selesai');
     }
+
+    /**
+     * Search work orders
+     */
+    public function search(Request $request)
+    {
+        $query = $request->input('q');
+        
+        if (empty($query)) {
+            return redirect('/');
+        }
+
+        $workOrders = WorkOrder::where('no_work_order', 'like', "%{$query}%")
+            ->orWhere('nama', 'like', "%{$query}%")
+            ->orWhere('rekanan', 'like', "%{$query}%")
+            ->orWhere('barang', 'like', "%{$query}%")
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $total = WorkOrder::count();
+        $processing = WorkOrder::where('status', 'Sedang Diproses')->count();
+        $completed = WorkOrder::where('status', 'Selesai')->count();
+
+        return view('dashboard', compact('workOrders', 'total', 'processing', 'completed'));
+    }
+
+    /**
+     * API Search work orders (returns JSON)
+     */
+    public function apiSearch(Request $request)
+    {
+        $query = $request->input('q', '');
+
+        $workOrders = WorkOrder::where('no_work_order', 'like', "%{$query}%")
+            ->orWhere('nama', 'like', "%{$query}%")
+            ->orWhere('rekanan', 'like', "%{$query}%")
+            ->orWhere('barang', 'like', "%{$query}%")
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'workOrders' => $workOrders,
+            'count' => $workOrders->count()
+        ]);
+    }
+
+    /**
+     * API Filter by status (returns JSON)
+     */
+    public function apiFilter(Request $request)
+    {
+        $status = $request->input('status', 'all');
+
+        if ($status === 'all') {
+            $workOrders = WorkOrder::orderBy('created_at', 'desc')->get();
+        } else {
+            $workOrders = WorkOrder::where('status', $status)->orderBy('created_at', 'desc')->get();
+        }
+
+        return response()->json([
+            'workOrders' => $workOrders,
+            'count' => $workOrders->count()
+        ]);
+    }
 }
 

@@ -379,15 +379,29 @@
             </div>
             
             <div class="flex gap-3 mb-8 flex-wrap">
-                <a href="/" class="px-6 py-2 rounded-xl font-semibold transition {{ !isset($status) || $status === 'all' ? 'gradient-btn text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300' }}">
+                <button onclick="filterByStatus('all')" class="px-6 py-2 rounded-xl font-semibold transition filter-btn cursor-pointer" data-status="all">
                     Semua
-                </a>
-                <a href="/filter/Sedang Diproses" class="px-6 py-2 rounded-xl font-semibold transition {{ isset($status) && $status === 'Sedang Diproses' ? 'gradient-btn text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300' }}">
+                </button>
+                <button onclick="filterByStatus('Sedang Diproses')" class="px-6 py-2 rounded-xl font-semibold transition filter-btn cursor-pointer" data-status="Sedang Diproses">
                     Sedang Diproses
-                </a>
-                <a href="/filter/Selesai" class="px-6 py-2 rounded-xl font-semibold transition {{ isset($status) && $status === 'Selesai' ? 'gradient-btn text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300' }}">
+                </button>
+                <button onclick="filterByStatus('Selesai')" class="px-6 py-2 rounded-xl font-semibold transition filter-btn cursor-pointer" data-status="Selesai">
                     Sudah Selesai
-                </a>
+                </button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="mb-8">
+                <form onsubmit="handleSearch(event)" class="flex gap-3">
+                    <input type="text" id="searchInput" placeholder="🔍 Cari berdasarkan No WO, Nama, Rekanan..." 
+                           class="form-input flex-1 px-5 py-3 border-2 border-gray-200 rounded-xl input-focus">
+                    <button type="submit" class="gradient-btn text-white font-semibold py-3 px-8 rounded-xl">
+                        🔍 Cari
+                    </button>
+                    <button type="button" onclick="resetSearch()" class="bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-xl hover:bg-gray-400 transition">
+                        ✕ Reset
+                    </button>
+                </form>
             </div>
 
             <div class="overflow-x-auto">
@@ -408,7 +422,7 @@
                     <tbody>
                         @if($workOrders->isEmpty())
                             <tr class="border-b border-gray-200">
-                                <td colspan="9" class="px-6 py-12 text-center text-gray-400 text-lg">📭 Tidak ada data work order</td>
+                                <td colspan="9" class="px-6 py-12 text-center text-gray-400 text-lg">📭 {{ request('q') ? 'Tidak ada data yang cocok dengan pencarian' : 'Tidak ada data work order' }}</td>
                             </tr>
                         @else
                             @foreach($workOrders as $wo)
@@ -529,6 +543,108 @@
     @endif
 
     <script>
+        let currentStatus = 'all';
+
+        // Initialize filter buttons on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateFilterButtons('all');
+        });
+
+        function updateFilterButtons(status) {
+            currentStatus = status;
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => {
+                if (btn.getAttribute('data-status') === status) {
+                    btn.classList.remove('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300');
+                    btn.classList.add('gradient-btn', 'text-white');
+                } else {
+                    btn.classList.remove('gradient-btn', 'text-white');
+                    btn.classList.add('bg-gray-200', 'text-gray-800', 'hover:bg-gray-300');
+                }
+            });
+        }
+
+        function filterByStatus(status) {
+            updateFilterButtons(status);
+            
+            fetch(`/api/filter?status=${status}`)
+                .then(response => response.json())
+                .then(data => {
+                    renderTable(data.workOrders);
+                    document.getElementById('searchInput').value = '';
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function handleSearch(event) {
+            event.preventDefault();
+            const query = document.getElementById('searchInput').value.trim();
+            
+            if (!query) {
+                resetSearch();
+                return;
+            }
+
+            fetch(`/api/search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    renderTable(data.workOrders);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function resetSearch() {
+            document.getElementById('searchInput').value = '';
+            filterByStatus('all');
+        }
+
+        function renderTable(workOrders) {
+            const tbody = document.querySelector('tbody');
+            
+            if (workOrders.length === 0) {
+                tbody.innerHTML = `
+                    <tr class="border-b border-gray-200">
+                        <td colspan="9" class="px-6 py-12 text-center text-gray-400 text-lg">📭 Tidak ada data yang cocok</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = workOrders.map(wo => `
+                <tr class="table-row-hover border-b border-gray-200">
+                    <td class="px-6 py-4 font-medium text-gray-700">#${wo.id}</td>
+                    <td class="px-6 py-4 font-bold text-indigo-600">${wo.no_work_order}</td>
+                    <td class="px-6 py-4 text-gray-800">${wo.nama}</td>
+                    <td class="px-6 py-4 text-gray-700">${wo.rekanan}</td>
+                    <td class="px-6 py-4 text-gray-600 text-sm">${wo.barang.substring(0, 20)}${wo.barang.length > 20 ? '...' : ''}</td>
+                    <td class="px-6 py-4 text-gray-700">${new Date(wo.tanggal_service).toLocaleDateString('id-ID')}</td>
+                    <td class="px-6 py-4">
+                        ${wo.status === 'Selesai' 
+                            ? '<span class="badge inline-block bg-green-100 text-green-800 px-4 py-2 rounded-full text-xs font-bold">✓ Selesai</span>' 
+                            : '<span class="badge inline-block bg-amber-100 text-amber-800 px-4 py-2 rounded-full text-xs font-bold">⏳ Diproses</span>'}
+                    </td>
+                    <td class="px-6 py-4 text-gray-700">${wo.tanggal_selesai ? new Date(wo.tanggal_selesai).toLocaleDateString('id-ID') : '-'}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex gap-2 flex-wrap">
+                            <button class="btn-action bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold" onclick="openEditModal(${wo.id})">✏️ Edit</button>
+                            <form method="POST" action="/work-orders/${wo.id}" style="display:inline;" onsubmit="return confirmDelete(event);">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-action bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold">🗑️ Hapus</button>
+                            </form>
+                            ${wo.status !== 'Selesai' 
+                                ? `<form method="POST" action="/work-orders/${wo.id}/complete" style="display:inline;" onsubmit="return confirmComplete(event);">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="btn-action bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg text-xs font-bold">✓ Selesai</button>
+                                </form>` 
+                                : ''}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
         function confirmDelete(event) {
             event.preventDefault();
             const form = event.target;
