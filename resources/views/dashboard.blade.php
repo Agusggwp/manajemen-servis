@@ -699,7 +699,7 @@
             const modal = document.getElementById('editModal');
             modal.style.display = 'none';
             window.location.href = '/';
-        }
+       }
 
         function openEditModal(id) {
             window.location.href = '/work-orders/' + id + '/edit';
